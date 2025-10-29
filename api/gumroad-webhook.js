@@ -1,8 +1,4 @@
-// api/gumroad-webhook.js
-// Serverless function for Vercel
-
 export default async function handler(req, res) {
-  // Only accept POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -11,8 +7,13 @@ export default async function handler(req, res) {
     console.log('=== Webhook received! ===');
     console.log('Body:', JSON.stringify(req.body, null, 2));
     
-    const { email, full_name, custom_fields } = req.body;
-    const githubUsername = custom_fields?.['GitHub Username'];
+    const { email, full_name } = req.body;
+    
+    // Gumroad sends custom fields in FLAT format, not nested!
+    // Look for: "custom_fields[GitHub Username]" or just "GitHub Username"
+    const githubUsername = 
+      req.body['custom_fields[GitHub Username]'] || 
+      req.body['GitHub Username'];
     
     console.log('Email:', email);
     console.log('Name:', full_name);
@@ -26,7 +27,6 @@ export default async function handler(req, res) {
       });
     }
     
-    // Get environment variables
     const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
     const REPO_OWNER = process.env.REPO_OWNER;
     const REPO_NAME = process.env.REPO_NAME;
@@ -41,7 +41,6 @@ export default async function handler(req, res) {
     
     console.log(`Adding ${githubUsername} to ${REPO_OWNER}/${REPO_NAME}...`);
     
-    // Add user to GitHub repo
     const githubResponse = await fetch(
       `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/collaborators/${githubUsername}`,
       {
@@ -51,28 +50,22 @@ export default async function handler(req, res) {
           'Accept': 'application/vnd.github+json',
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ 
-          permission: 'pull'  // Read-only access
-        })
+        body: JSON.stringify({ permission: 'pull' })
       }
     );
     
     if (githubResponse.ok || githubResponse.status === 204) {
       console.log('✅ SUCCESS! User added to repo');
-      
-      // Optional: Log this to a database or send confirmation email here
-      
       return res.status(200).json({ 
-        success: true,
+        success: true, 
         message: `Added ${githubUsername} to repository` 
       });
     } else {
       const errorText = await githubResponse.text();
       console.log('❌ FAILED:', githubResponse.status);
       console.log('Error:', errorText);
-      
       return res.status(200).json({ 
-        success: false,
+        success: false, 
         error: 'Failed to add user to GitHub',
         details: errorText
       });
@@ -80,8 +73,6 @@ export default async function handler(req, res) {
     
   } catch (error) {
     console.error('❌ Error:', error.message);
-    
-    // Always return 200 to Gumroad so they don't retry
     return res.status(200).json({ 
       success: false, 
       error: error.message 
