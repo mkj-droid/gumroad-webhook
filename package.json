@@ -1,0 +1,10 @@
+{
+  "name": "gumroad-github-webhook",
+  "version": "1.0.0",
+  "description": "Automatically add Gumroad buyers to private GitHub repo",
+  "main": "api/gumroad-webhook.js",
+  "type": "module",
+  "scripts": {
+    "deploy": "vercel --prod"
+  }
+}
